@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "589277853186",
+    "project_id": "nhrmes-8f4d0",
+    "storage_bucket": "nhrmes-8f4d0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589277853186:android:1d7d478fb5cf8e78a9191b",
+        "android_client_info": {
+          "package_name": "com.example.nhrmes"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "589277853186-24eg6tgium7n684ug44cu8725sfcpqus.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.nhrmes",
+            "certificate_hash": "69e3bd317995329d1ded318f4b542b7d0016cbe5"
+          }
+        },
+        {
+          "client_id": "589277853186-anl98mhdqdicvqlnsen6981ru9h79gbm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiCtKZtdUiNkztR49L9Y9wlGLMY0P9qX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "589277853186-anl98mhdqdicvqlnsen6981ru9h79gbm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

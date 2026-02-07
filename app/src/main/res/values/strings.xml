@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">NHRMES</string>
+    <string name="default_web_client_id">589277853186-anl98mhdqdicvqlnsen6981ru9h79gbm.apps.googleusercontent.com</string>
+    <string name="app_logo_description">App Logo</string>
+    <string name="app_name_splash">NHRMES</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="register_button_text">Register</string>
+    <string name="registered_email_hint">Registered Email</string>
+    <string name="send_reset_link_button_text">Send Reset Link</string>
+    <string name="welcome_to_nhrmes">Welcome to NHRMES</string>
+    <string name="care_beyond_clinics">Care Beyond Clinics</string>
+    <string name="email_address_hint">Email Address</string>
+    <string name="login_button_text">Login</string>
+    <string name="forgot_password_prompt">Forgot Password?</string>
+    <string name="or_divider">OR</string>
+    <string name="continue_with_google">Continue with Google</string>
+    <string name="new_user_prompt">New user? Create account</string>
+</resources>
