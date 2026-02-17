@@ -12,11 +12,12 @@ import androidx.recyclerview.widget.RecyclerView
 class HospitalAdapter(private val list: List<Hospital>) :
     RecyclerView.Adapter<HospitalAdapter.HospitalViewHolder>() {
 
-    inner class HospitalViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    class HospitalViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+
         val name: TextView = view.findViewById(R.id.txtHospitalName)
-        val distance: TextView = view.findViewById(R.id.txtDistance)
-        val beds: TextView = view.findViewById(R.id.txtBeds)
-        val doctors: TextView = view.findViewById(R.id.txtDoctors)
+        val location: TextView = view.findViewById(R.id.txtLocation)
+        val icuBeds: TextView = view.findViewById(R.id.txtICU)
+        val oxygenBeds: TextView = view.findViewById(R.id.txtOxygen)
         val emergency: TextView = view.findViewById(R.id.txtEmergency)
         val callBtn: Button = view.findViewById(R.id.btnCall)
     }
@@ -28,15 +29,17 @@ class HospitalAdapter(private val list: List<Hospital>) :
     }
 
     override fun onBindViewHolder(holder: HospitalViewHolder, position: Int) {
+
         val hospital = list[position]
 
         holder.name.text = hospital.name
-        holder.distance.text = "📍 ${hospital.distanceKm} km away"
-        holder.beds.text = "🛏 Beds Available: ${hospital.availableBeds}"
-        holder.doctors.text = "👨‍⚕️ Doctors Available: ${hospital.doctorsAvailable}"
+        holder.location.text = "Location: ${hospital.location}"
+        holder.icuBeds.text = "ICU Beds: ${hospital.icuBedsAvailable}"
+        holder.oxygenBeds.text = "Oxygen Beds: ${hospital.oxygenBedsAvailable}"
 
         holder.emergency.text =
-            if (hospital.emergencyReady) "🚨 Emergency Ready" else "⚠️ Limited Emergency"
+            if (hospital.emergencyReady) "Emergency Ready"
+            else "Limited Emergency"
 
         holder.callBtn.setOnClickListener {
             val intent = Intent(Intent.ACTION_DIAL)

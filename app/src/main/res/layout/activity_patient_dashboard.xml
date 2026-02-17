@@ -1,25 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F5F7FB">
+    android:layout_height="match_parent">
 
-    <!-- HEADER -->
-    <TextView
-        android:text="Emergency Nearby Hospitals"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:textColor="#222"
-        android:padding="16dp"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
 
-    <!-- LIST -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/hospitalRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="12dp" />
+        <TextView
+            android:id="@+id/txtTotalHospitals"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/txtAvailableICU"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textSize="22sp"
+            android:layout_marginTop="10dp"/>
+
+        <Button
+            android:id="@+id/btnViewHospitals"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="View Hospitals"
+            android:layout_marginTop="20dp"/>
+
+        <Button
+            android:id="@+id/btnRequestEmergency"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Request Emergency"
+            android:layout_marginTop="10dp"/>
+
+        <Button
+            android:id="@+id/btnMyRequests"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="My Requests"
+            android:layout_marginTop="10dp"/>
+
+        <Button
+            android:id="@+id/btnLogout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Logout"
+            android:layout_marginTop="20dp"/>
+
+    </LinearLayout>
+</ScrollView>
