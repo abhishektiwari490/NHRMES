@@ -3,29 +3,31 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
-    android:background="#E91E63">
+    android:gravity="center">
+<!--    android:background="#E91E63"-->
+
 
     <!-- APP ICON -->
-    <ImageView
-        android:layout_width="72dp"
-        android:layout_height="72dp"
-        android:src="@mipmap/ic_launcher"
-        android:layout_marginBottom="12dp" />
+<!--    <ImageView-->
+<!--        android:layout_width="72dp"-->
+<!--        android:layout_height="72dp"-->
+<!--        android:src="@mipmap/ic_launcher"-->
+<!--        android:layout_marginBottom="12dp" />-->
 
     <!-- APP LOGO (LARGE) -->
     <ImageView
-        android:layout_width="160dp"
-        android:layout_height="160dp"
-        android:src="@drawable/app_logo"
-        android:layout_marginBottom="16dp" />
+        android:layout_width="202dp"
+        android:layout_height="138dp"
+        android:layout_marginBottom="16dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/app_logo" />
 
     <!-- APP NAME -->
     <TextView
         android:text="NHRMES"
         android:textSize="26sp"
         android:textStyle="bold"
-        android:textColor="@android:color/white"
+        android:textColor="@android:color/black"
         android:layout_marginBottom="6dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
@@ -34,7 +36,7 @@
     <TextView
         android:text="Care Beyond Clinics"
         android:textSize="14sp"
-        android:textColor="#FFE6EC"
+        android:textColor="@color/black"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 

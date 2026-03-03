@@ -16,6 +16,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : AppCompatActivity() {
 
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
                 .addOnCompleteListener {
                     if (it.isSuccessful) {
                         Toast.makeText(this, "Login Successful", Toast.LENGTH_SHORT).show()
-                        // TODO: Go to Dashboard
+                        goToDashboard()
                     } else {
                         Toast.makeText(
                             this,
@@ -104,6 +105,8 @@ class MainActivity : AppCompatActivity() {
         forgotTxt.setOnClickListener {
             startActivity(Intent(this, ForgetPassword::class.java))
         }
+
+        addSampleHospitals()
     }
 
     private fun firebaseAuthWithGoogle(idToken: String) {
@@ -116,7 +119,7 @@ class MainActivity : AppCompatActivity() {
                         "Google Login Successful",
                         Toast.LENGTH_SHORT
                     ).show()
-                    // TODO: Go to Dashboard
+                    goToDashboard()
                 } else {
                     Toast.makeText(
                         this,
@@ -125,5 +128,25 @@ class MainActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+    }
+
+    private fun goToDashboard() {
+        startActivity(Intent(this, PatientDashboardActivity::class.java))
+        finish()
+    }
+
+    private fun addSampleHospitals() {
+        val db = FirebaseDatabase.getInstance().getReference("hospitals")
+        val hospitals = listOf(
+            Hospital("City General Hospital", 5.2, 20, 15, true, "9876543210"),
+            Hospital("Green Valley Medical Center", 12.8, 10, 8, false, "1234567890"),
+            Hospital("St. Luke's Hospital", 8.5, 30, 25, true, "0987654321"),
+            Hospital("Community Hospital", 3.1, 15, 12, true, "1122334455"),
+            Hospital("Hope Medical Clinic", 15.2, 5, 4, false, "5566778899")
+        )
+
+        hospitals.forEach { hospital ->
+            db.push().setValue(hospital)
+        }
     }
 }

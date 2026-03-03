@@ -4,7 +4,10 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 
 class PatientDashboardActivity : AppCompatActivity() {
 
@@ -25,20 +28,22 @@ class PatientDashboardActivity : AppCompatActivity() {
     }
 
     private fun fetchHospitals() {
-        FirebaseFirestore.getInstance()
-            .collection("hospitals")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
+        FirebaseDatabase.getInstance().getReference("hospitals")
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
                     hospitalList.clear()
-                    for (doc in snapshot.documents) {
-                        val hospital = doc.toObject(Hospital::class.java)
+                    for (dataSnapshot in snapshot.children) {
+                        val hospital = dataSnapshot.getValue(Hospital::class.java)
                         if (hospital != null) {
                             hospitalList.add(hospital)
                         }
                     }
                     adapter.notifyDataSetChanged()
                 }
-            }
+
+                override fun onCancelled(error: DatabaseError) {
+                    // Handle error
+                }
+            })
     }
 }
-
