@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 
 class RegisterActivity : AppCompatActivity() {
 
@@ -24,6 +25,7 @@ class RegisterActivity : AppCompatActivity() {
         registerBtn = findViewById(R.id.register)
 
         registerBtn.setOnClickListener {
+
             val emailText = email.text.toString().trim()
             val pwdText = password.text.toString().trim()
 
@@ -33,16 +35,35 @@ class RegisterActivity : AppCompatActivity() {
             }
 
             auth.createUserWithEmailAndPassword(emailText, pwdText)
-                .addOnCompleteListener {
-                    if (it.isSuccessful) {
-                        Toast.makeText(this, "Registered Successfully", Toast.LENGTH_SHORT).show()
+                .addOnCompleteListener { task ->
+
+                    if (task.isSuccessful) {
+
+                        val user = auth.currentUser
+                        val userId = user!!.uid
+
+                        val database = FirebaseDatabase.getInstance()
+                            .getReference("Users")
+
+                        val userMap = HashMap<String, Any>()
+                        userMap["email"] = emailText
+                        userMap["role"] = "patient"
+
+                        database.child(userId).setValue(userMap)
+
+                        Toast.makeText(this,
+                            "Registered Successfully",
+                            Toast.LENGTH_SHORT).show()
+
                         startActivity(Intent(this, MainActivity::class.java))
                         finish()
+
                     } else {
-                        Toast.makeText(this, it.exception?.message, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this,
+                            task.exception?.message,
+                            Toast.LENGTH_LONG).show()
                     }
                 }
         }
     }
 }
-

@@ -1,6 +1,7 @@
 package com.example.nhrmes
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
@@ -8,17 +9,20 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import java.text.DecimalFormat
 
 class HospitalAdapter(private val list: List<Hospital>) :
     RecyclerView.Adapter<HospitalAdapter.HospitalViewHolder>() {
 
-    inner class HospitalViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    class HospitalViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.txtHospitalName)
-        val distance: TextView = view.findViewById(R.id.txtDistance)
-        val beds: TextView = view.findViewById(R.id.txtBeds)
-        val doctors: TextView = view.findViewById(R.id.txtDoctors)
+        val location: TextView = view.findViewById(R.id.txtLocation)
+        val icuBeds: TextView = view.findViewById(R.id.txtICU)
+        val oxygenBeds: TextView = view.findViewById(R.id.txtOxygen)
         val emergency: TextView = view.findViewById(R.id.txtEmergency)
+        val distance: TextView = view.findViewById(R.id.txtDistance)
         val callBtn: Button = view.findViewById(R.id.btnCall)
+        val mapBtn: Button = view.findViewById(R.id.btnMap)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HospitalViewHolder {
@@ -28,20 +32,39 @@ class HospitalAdapter(private val list: List<Hospital>) :
     }
 
     override fun onBindViewHolder(holder: HospitalViewHolder, position: Int) {
+
         val hospital = list[position]
+        val df = DecimalFormat("#.##")
 
         holder.name.text = hospital.name
-        holder.distance.text = "📍 ${hospital.distanceKm} km away"
-        holder.beds.text = "🛏 Beds Available: ${hospital.availableBeds}"
-        holder.doctors.text = "👨‍⚕️ Doctors Available: ${hospital.doctorsAvailable}"
+        holder.location.text = "Location: ${hospital.location}"
+        holder.icuBeds.text = "ICU Beds: ${hospital.icuBedsAvailable}"
+        holder.oxygenBeds.text = "Oxygen Beds: ${hospital.oxygenBedsAvailable}"
+        holder.distance.text = "Distance: ${df.format(hospital.distance)} km"
+
+        // Low capacity warning
+        if (hospital.icuBedsAvailable < 2) {
+            holder.icuBeds.setTextColor(Color.RED)
+        } else {
+            holder.icuBeds.setTextColor(Color.BLACK)
+        }
 
         holder.emergency.text =
-            if (hospital.emergencyReady) "🚨 Emergency Ready" else "⚠️ Limited Emergency"
+            if (hospital.emergencyReady) "🟢 Emergency Ready"
+            else "🔴 Limited Emergency"
 
         holder.callBtn.setOnClickListener {
             val intent = Intent(Intent.ACTION_DIAL)
             intent.data = Uri.parse("tel:${hospital.phone}")
             holder.itemView.context.startActivity(intent)
+        }
+
+        holder.mapBtn.setOnClickListener {
+            val uri = Uri.parse(
+                "geo:${hospital.latitude},${hospital.longitude}?q=${hospital.latitude},${hospital.longitude}(${hospital.name})"
+            )
+            val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+            holder.itemView.context.startActivity(mapIntent)
         }
     }
 
