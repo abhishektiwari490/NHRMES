@@ -46,4 +46,18 @@
         android:text="Call Hospital"
         android:layout_marginTop="8dp"/>
 
+    <TextView
+        android:id="@+id/txtDistance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:layout_marginTop="4dp"/>
+
+    <Button
+        android:id="@+id/btnMap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Open in Map"
+        android:layout_marginTop="8dp"/>
+
 </LinearLayout>

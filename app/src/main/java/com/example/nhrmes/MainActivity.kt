@@ -11,6 +11,7 @@ import com.google.android.gms.auth.api.signin.*
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.database.FirebaseDatabase
 
 class MainActivity : AppCompatActivity() {
 
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         loginBtn.setOnClickListener {
+
             val emailText = email.text.toString().trim()
             val pwdText = password.text.toString().trim()
 
@@ -68,12 +70,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             auth.signInWithEmailAndPassword(emailText, pwdText)
-                .addOnCompleteListener {
-                    if (it.isSuccessful) {
-                        startActivity(Intent(this, PatientDashboardActivity::class.java))
-                        finish()
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        checkUserRole()
                     } else {
-                        Toast.makeText(this, it.exception?.message, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, task.exception?.message, Toast.LENGTH_LONG).show()
                     }
                 }
         }
@@ -92,15 +93,74 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun firebaseAuthWithGoogle(idToken: String) {
+
         val credential = GoogleAuthProvider.getCredential(idToken, null)
+
         auth.signInWithCredential(credential)
-            .addOnCompleteListener {
-                if (it.isSuccessful) {
-                    startActivity(Intent(this, PatientDashboardActivity::class.java))
-                    finish()
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+
+                    val user = auth.currentUser!!
+                    val userId = user.uid
+                    val userEmail = user.email ?: ""
+
+                    val userRef = FirebaseDatabase.getInstance()
+                        .getReference("Users")
+                        .child(userId)
+
+                    userRef.get().addOnSuccessListener { snapshot ->
+
+                        if (!snapshot.exists()) {
+                            // New Google user → default as patient
+                            val userMap = HashMap<String, Any>()
+                            userMap["email"] = userEmail
+                            userMap["role"] = "patient"
+                            userRef.setValue(userMap)
+                        }
+
+                        checkUserRole()
+                    }
+
                 } else {
                     Toast.makeText(this, "Authentication Failed", Toast.LENGTH_LONG).show()
                 }
+            }
+    }
+
+    private fun checkUserRole() {
+
+        val currentUser = auth.currentUser ?: return
+        val userId = currentUser.uid
+
+        val database = FirebaseDatabase.getInstance()
+            .getReference("Users")
+
+        database.child(userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                val role = snapshot.child("role").value?.toString() ?: "patient"
+
+                when (role) {
+
+                    "admin" -> {
+                        startActivity(Intent(this, AdminDashboardActivity::class.java))
+                    }
+
+                    "government" -> {
+                        startActivity(Intent(this, GovernmentDashboardActivity::class.java))
+                    }
+
+                    "patient" -> {
+                        startActivity(Intent(this, PatientDashboardActivity::class.java))
+                    }
+
+                    else -> {
+                        startActivity(Intent(this, PatientDashboardActivity::class.java))
+                    }
+                }
+
+                finish()
             }
     }
 }
