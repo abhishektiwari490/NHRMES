@@ -12,7 +12,8 @@ class MyRequestsActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: MyRequestAdapter
 
-    private val myList = mutableListOf<Any>() // can store both types
+    // Adapter now expects Pair<String, Any>
+    private val requestList = mutableListOf<Pair<String, Any>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,16 +22,19 @@ class MyRequestsActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerMyRequests)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        adapter = MyRequestAdapter(myList)
+        adapter = MyRequestAdapter(requestList)
         recyclerView.adapter = adapter
 
         loadEmergencyRequests()
         loadAppointments()
     }
 
+    // ===================================
+    // Load Emergency Requests
+    // ===================================
     private fun loadEmergencyRequests() {
 
-        val userId = FirebaseAuth.getInstance().currentUser!!.uid
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
         FirebaseDatabase.getInstance()
             .getReference("EmergencyRequests")
@@ -40,15 +44,21 @@ class MyRequestsActivity : AppCompatActivity() {
 
                 override fun onDataChange(snapshot: DataSnapshot) {
 
-                    myList.removeAll { it is EmergencyRequest }
+                    // remove old emergency requests
+                    requestList.removeAll { it.second is EmergencyRequest }
 
                     for (child in snapshot.children) {
 
                         val request =
                             child.getValue(EmergencyRequest::class.java)
 
+                        val requestId = child.key ?: continue
+
                         if (request != null) {
-                            myList.add(request)
+
+                            requestList.add(
+                                Pair(requestId, request)
+                            )
                         }
                     }
 
@@ -59,9 +69,12 @@ class MyRequestsActivity : AppCompatActivity() {
             })
     }
 
+    // ===================================
+    // Load Appointments
+    // ===================================
     private fun loadAppointments() {
 
-        val userId = FirebaseAuth.getInstance().currentUser!!.uid
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
         FirebaseDatabase.getInstance()
             .getReference("Appointments")
@@ -71,15 +84,21 @@ class MyRequestsActivity : AppCompatActivity() {
 
                 override fun onDataChange(snapshot: DataSnapshot) {
 
-                    myList.removeAll { it is Appointment }
+                    // remove old appointments
+                    requestList.removeAll { it.second is Appointment }
 
                     for (child in snapshot.children) {
 
                         val appointment =
                             child.getValue(Appointment::class.java)
 
+                        val appointmentId = child.key ?: continue
+
                         if (appointment != null) {
-                            myList.add(appointment)
+
+                            requestList.add(
+                                Pair(appointmentId, appointment)
+                            )
                         }
                     }
 

@@ -27,8 +27,10 @@ class AdminCombinedAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_admin_request, parent, false)
+
         return ViewHolder(view)
     }
 
@@ -38,15 +40,14 @@ class AdminCombinedAdapter(
 
         val item = list[position]
 
-        // VERY IMPORTANT: Reset state (RecyclerView reuse fix)
+        // Reset state (important for RecyclerView)
         holder.btnApprove.isEnabled = true
         holder.btnReject.isEnabled = true
         holder.btnReject.visibility = View.VISIBLE
-        holder.btnApprove.text = "Approve"
 
-        // =========================================================
-        // 🚑 EMERGENCY REQUEST SECTION
-        // =========================================================
+        // =====================================================
+        // 🚑 EMERGENCY REQUEST
+        // =====================================================
         if (item.type == "REQUEST" && item.request != null) {
 
             val request = item.request
@@ -55,10 +56,12 @@ class AdminCombinedAdapter(
                 .getReference("Hospitals")
                 .child(request.hospitalId)
                 .get()
-                .addOnSuccessListener { snapshot ->
+                .addOnSuccessListener {
+
                     val hospitalName =
-                        snapshot.child("name").value?.toString()
+                        it.child("name").value?.toString()
                             ?: request.hospitalId
+
                     holder.txtHospital.text = "Hospital: $hospitalName"
                 }
 
@@ -77,6 +80,7 @@ class AdminCombinedAdapter(
 
                 "Pending" -> {
                     holder.btnApprove.text = "Dispatch"
+                    holder.btnReject.visibility = View.VISIBLE
                 }
 
                 "Ambulance On The Way" -> {
@@ -98,9 +102,13 @@ class AdminCombinedAdapter(
             holder.btnApprove.setOnClickListener {
 
                 val newStatus = when (request.status) {
+
                     "Pending" -> "Ambulance On The Way"
+
                     "Ambulance On The Way" -> "Reached"
+
                     "Reached" -> "Completed"
+
                     else -> request.status
                 }
 
@@ -112,7 +120,9 @@ class AdminCombinedAdapter(
             }
 
             holder.btnReject.setOnClickListener {
+
                 if (request.status == "Pending") {
+
                     FirebaseDatabase.getInstance()
                         .getReference("EmergencyRequests")
                         .child(item.id)
@@ -122,9 +132,9 @@ class AdminCombinedAdapter(
             }
         }
 
-        // =========================================================
-        // 🩺 APPOINTMENT REQUEST SECTION
-        // =========================================================
+        // =====================================================
+        // 🩺 APPOINTMENT REQUEST
+        // =====================================================
         else if (item.type == "APPOINTMENT" && item.appointment != null) {
 
             val appointment = item.appointment
@@ -133,9 +143,10 @@ class AdminCombinedAdapter(
                 .getReference("Hospitals")
                 .child(appointment.hospitalId)
                 .get()
-                .addOnSuccessListener { snapshot ->
+                .addOnSuccessListener {
+
                     val hospitalName =
-                        snapshot.child("name").value?.toString()
+                        it.child("name").value?.toString()
                             ?: appointment.hospitalId
 
                     holder.txtHospital.text =
@@ -147,7 +158,8 @@ class AdminCombinedAdapter(
             holder.txtTime.text =
                 if (appointment.appointmentDate.isNotEmpty())
                     "${appointment.appointmentDate} at ${appointment.appointmentTime}"
-                else "Waiting for Schedule"
+                else
+                    "Waiting for Schedule"
 
             holder.txtStatus.text = appointment.status
             setStatusColor(holder.txtStatus, appointment.status)
@@ -163,10 +175,12 @@ class AdminCombinedAdapter(
 
                     val calendar = Calendar.getInstance()
 
-                    DatePickerDialog(holder.itemView.context,
+                    DatePickerDialog(
+                        holder.itemView.context,
                         { _, year, month, day ->
 
-                            TimePickerDialog(holder.itemView.context,
+                            TimePickerDialog(
+                                holder.itemView.context,
                                 { _, hour, minute ->
 
                                     val date = "$day/${month + 1}/$year"
@@ -208,14 +222,12 @@ class AdminCombinedAdapter(
         }
     }
 
-    // =========================================================
-    // 🎨 STATUS COLOR METHOD
-    // =========================================================
     private fun setStatusColor(view: TextView, status: String) {
 
         when (status) {
 
-            "Pending" -> view.setBackgroundColor(Color.parseColor("#FFA000"))
+            "Pending" ->
+                view.setBackgroundColor(Color.parseColor("#FFA000"))
 
             "Ambulance On The Way" ->
                 view.setBackgroundColor(Color.parseColor("#1976D2"))

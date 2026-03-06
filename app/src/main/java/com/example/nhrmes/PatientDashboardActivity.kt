@@ -154,7 +154,7 @@ class PatientDashboardActivity : AppCompatActivity() {
 
                     val hospital = child.getValue(Hospital::class.java)
 
-                    if (hospital != null) {
+                    if (hospital != null && hospital.icuBedsAvailable > 0) {
 
                         val distance = calculateDistance(
                             userLat,
@@ -179,6 +179,7 @@ class PatientDashboardActivity : AppCompatActivity() {
                     requestMap["hospitalId"] = nearestHospitalId!!
                     requestMap["bedType"] = "Emergency SOS"
                     requestMap["status"] = "Pending"
+                    requestMap["priority"] = "High"
                     requestMap["timestamp"] = System.currentTimeMillis()
 
                     requestRef.setValue(requestMap)

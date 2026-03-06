@@ -11,7 +11,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MyRequestAdapter(
-    private val list: List<Any> // Can contain EmergencyRequest OR Appointment
+    private val list: List<Pair<String, Any>>
 ) : RecyclerView.Adapter<MyRequestAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -25,8 +25,10 @@ class MyRequestAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_request, parent, false)
+
         return ViewHolder(view)
     }
 
@@ -34,16 +36,16 @@ class MyRequestAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
 
-        val item = list[position]
+        val (id, item) = list[position]
 
         when (item) {
 
-            // =========================
-            // EMERGENCY REQUEST
-            // =========================
+            // ===================================
+            // 🚑 EMERGENCY REQUEST
+            // ===================================
             is EmergencyRequest -> {
 
-                loadHospitalDetails(holder, item.hospitalId)
+                loadHospital(holder, item.hospitalId)
 
                 holder.txtBedType.text = "Bed Type: ${item.bedType}"
 
@@ -51,31 +53,49 @@ class MyRequestAdapter(
                     "dd MMM yyyy, hh:mm a",
                     Locale.getDefault()
                 )
+
                 holder.txtDate.text = sdf.format(Date(item.timestamp))
 
-                holder.txtStatus.text = item.status
-                setStatusColor(holder, item.status)
+                if (item.status == "Ambulance On The Way") {
+
+                    val eta = item.ambulanceETA ?: ""
+                    val distance = item.ambulanceDistance ?: ""
+
+                    holder.txtStatus.text =
+                        "🚑 Ambulance On The Way\nETA: $eta\nDistance: $distance"
+
+                } else {
+
+                    holder.txtStatus.text = item.status
+                }
+
+                setStatusColor(holder.txtStatus, item.status)
 
                 if (item.status == "Pending") {
+
                     holder.btnCancel.visibility = View.VISIBLE
+
                     holder.btnCancel.setOnClickListener {
+
                         FirebaseDatabase.getInstance()
                             .getReference("EmergencyRequests")
-                            .child(getRequestId(position))
+                            .child(id)
                             .child("status")
                             .setValue("Cancelled")
                     }
+
                 } else {
+
                     holder.btnCancel.visibility = View.GONE
                 }
             }
 
-            // =========================
-            // APPOINTMENT
-            // =========================
+            // ===================================
+            // 🩺 APPOINTMENT
+            // ===================================
             is Appointment -> {
 
-                loadHospitalDetails(holder, item.hospitalId)
+                loadHospital(holder, item.hospitalId)
 
                 holder.txtBedType.text = "Doctor: ${item.specialist}"
 
@@ -85,28 +105,34 @@ class MyRequestAdapter(
                     else "Waiting for Admin Schedule"
 
                 holder.txtStatus.text = item.status
-                setStatusColor(holder, item.status)
+
+                setStatusColor(holder.txtStatus, item.status)
 
                 if (item.status == "Pending") {
+
                     holder.btnCancel.visibility = View.VISIBLE
+
                     holder.btnCancel.setOnClickListener {
+
                         FirebaseDatabase.getInstance()
                             .getReference("Appointments")
-                            .child(getAppointmentId(position))
+                            .child(id)
                             .child("status")
                             .setValue("Cancelled")
                     }
+
                 } else {
+
                     holder.btnCancel.visibility = View.GONE
                 }
             }
         }
     }
 
-    // =========================
-    // Load Hospital Details
-    // =========================
-    private fun loadHospitalDetails(holder: ViewHolder, hospitalId: String) {
+    // ===================================
+    // Load Hospital Info
+    // ===================================
+    private fun loadHospital(holder: ViewHolder, hospitalId: String) {
 
         FirebaseDatabase.getInstance()
             .getReference("Hospitals")
@@ -129,46 +155,44 @@ class MyRequestAdapter(
                 holder.txtHospital.text = hospitalName
 
                 holder.btnCall.setOnClickListener {
+
                     val intent = Intent(Intent.ACTION_DIAL)
                     intent.data = Uri.parse("tel:$phone")
+
                     holder.itemView.context.startActivity(intent)
                 }
 
                 holder.btnMap.setOnClickListener {
+
                     val uri = Uri.parse("geo:$lat,$lng?q=$lat,$lng($hospitalName)")
+
                     val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+
                     holder.itemView.context.startActivity(mapIntent)
                 }
             }
     }
 
-    // =========================
-    // Status Color Logic
-    // =========================
-    private fun setStatusColor(holder: ViewHolder, status: String) {
+    // ===================================
+    // Status Color
+    // ===================================
+    private fun setStatusColor(view: TextView, status: String) {
 
         when (status) {
-            "Approved" -> holder.txtStatus.setBackgroundColor(Color.parseColor("#4CAF50"))
-            "Rejected" -> holder.txtStatus.setBackgroundColor(Color.parseColor("#F44336"))
-            "Cancelled" -> holder.txtStatus.setBackgroundColor(Color.parseColor("#9E9E9E"))
-            else -> holder.txtStatus.setBackgroundColor(Color.parseColor("#FFA000"))
+
+            "Approved", "Completed" ->
+                view.setBackgroundColor(Color.parseColor("#4CAF50"))
+
+            "Rejected", "Cancelled" ->
+                view.setBackgroundColor(Color.parseColor("#F44336"))
+
+            "Ambulance On The Way" ->
+                view.setBackgroundColor(Color.parseColor("#1976D2"))
+
+            else ->
+                view.setBackgroundColor(Color.parseColor("#FFA000"))
         }
 
-        holder.txtStatus.setTextColor(Color.WHITE)
-    }
-
-    // =========================
-    // Safe ID Helpers
-    // =========================
-    private fun getRequestId(position: Int): String {
-        return FirebaseDatabase.getInstance().reference
-            .child("EmergencyRequests")
-            .push().key ?: ""
-    }
-
-    private fun getAppointmentId(position: Int): String {
-        return FirebaseDatabase.getInstance().reference
-            .child("Appointments")
-            .push().key ?: ""
+        view.setTextColor(Color.WHITE)
     }
 }

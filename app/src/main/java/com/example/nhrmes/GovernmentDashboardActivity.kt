@@ -121,6 +121,7 @@ class GovernmentDashboardActivity : AppCompatActivity() {
                     }
 
                     // Update UI
+                    // Update UI
                     txtTotalHospitals.text = "Hospitals\n$totalHospitals"
                     txtTotalICU.text = "ICU Beds\n$totalICU"
                     txtTotalOxygen.text = "Oxygen Beds\n$totalOxygen"
@@ -129,6 +130,19 @@ class GovernmentDashboardActivity : AppCompatActivity() {
 
                     hospitalAdapter.notifyDataSetChanged()
 
+// 🚨 NATIONAL EMERGENCY DETECTION
+                    if (criticalList.size >= 3) {
+
+                        txtPredictionWarning.visibility = View.VISIBLE
+                        txtPredictionWarning.text =
+                            "🚨 National Emergency: Multiple hospitals critical!"
+
+                    } else {
+
+                        txtPredictionWarning.visibility = View.GONE
+                    }
+
+// Existing prediction logic
                     handlePredictionLogic(totalICU)
                     updateICUChart(totalICU)
                 }
@@ -168,12 +182,14 @@ class GovernmentDashboardActivity : AppCompatActivity() {
         icuTrendList.add(Entry(timeIndex, currentICU.toFloat()))
         timeIndex++
 
-        val dataSet = LineDataSet(icuTrendList, "ICU Beds")
+        val dataSet = LineDataSet(icuTrendList, "National ICU Availability")
 
         dataSet.setColors(*ColorTemplate.MATERIAL_COLORS)
         dataSet.valueTextSize = 10f
-        dataSet.lineWidth = 2f
+        dataSet.lineWidth = 3f
         dataSet.setCircleColor(android.graphics.Color.RED)
+        dataSet.setDrawValues(false)
+        dataSet.setDrawCircles(true)
 
         val lineData = LineData(dataSet)
 
