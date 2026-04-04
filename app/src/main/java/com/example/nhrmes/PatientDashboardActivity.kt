@@ -4,250 +4,206 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.widget.Button
+import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.LocationServices
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import java.util.*
 
 class PatientDashboardActivity : AppCompatActivity() {
 
     private lateinit var txtWelcome: TextView
+    private lateinit var txtUserNameLabel: TextView
     private lateinit var txtTotalHospitals: TextView
-    private lateinit var txtAvailableICU: TextView
+    private lateinit var txtICUBeds: TextView
+    private lateinit var txtAmbulances: TextView
+    private lateinit var bottomNav: BottomNavigationView
+    private lateinit var fabSOS: ExtendedFloatingActionButton
+    private lateinit var cardNearbyMap: CardView
 
-    private lateinit var btnViewHospitals: Button
-    private lateinit var btnRequestEmergency: Button
-    private lateinit var btnMyRequests: Button
-    private lateinit var btnBookAppointment: Button
-    private lateinit var btnSOS: Button
-    private lateinit var btnLogout: Button
-
-    private lateinit var hospitalRef: DatabaseReference
-    private lateinit var emergencyRef: DatabaseReference
+    private lateinit var database: DatabaseReference
+    private val auth = FirebaseAuth.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_patient_dashboard)
 
-        // TextViews
+        // Initialize Views
         txtWelcome = findViewById(R.id.txtWelcome)
+        txtUserNameLabel = findViewById(R.id.txtUserEmail)
         txtTotalHospitals = findViewById(R.id.txtTotalHospitals)
-        txtAvailableICU = findViewById(R.id.txtAvailableICU)
+        txtICUBeds = findViewById(R.id.txtICUBeds)
+        txtAmbulances = findViewById(R.id.txtAmbulances)
+        bottomNav = findViewById(R.id.bottom_navigation)
+        fabSOS = findViewById(R.id.fabSOS)
+        cardNearbyMap = findViewById(R.id.cardNearbyMap)
 
-        // Buttons
-        btnViewHospitals = findViewById(R.id.btnViewHospitals)
-        btnRequestEmergency = findViewById(R.id.btnRequestEmergency)
-        btnMyRequests = findViewById(R.id.btnMyRequests)
-        btnBookAppointment = findViewById(R.id.btnBookAppointment)
-        btnSOS = findViewById(R.id.btnSOS)
-        btnLogout = findViewById(R.id.btnLogout)
+        database = FirebaseDatabase.getInstance().reference
 
-        val email = FirebaseAuth.getInstance().currentUser?.email ?: "User"
-        txtWelcome.text = "Welcome, $email"
+        setupUserData()
+        setupStats()
+        setupClickListeners()
+        setupBottomNav()
+        
+        // Dynamic Greeting and Status bar color
+        window.statusBarColor = getColor(R.color.primary_dark)
+    }
 
-        hospitalRef = FirebaseDatabase.getInstance().getReference("Hospitals")
-        emergencyRef = FirebaseDatabase.getInstance().getReference("EmergencyRequests")
+    private fun setupUserData() {
+        val user = auth.currentUser ?: return
+        
+        database.child("Users").child(user.uid).get().addOnSuccessListener { snapshot ->
+            val name = snapshot.child("name").value?.toString() ?: "User"
+            
+            val calendar = Calendar.getInstance()
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            
+            val greeting = when (hour) {
+                in 0..11 -> "Good Morning"
+                in 12..15 -> "Good Afternoon"
+                in 16..20 -> "Good Evening"
+                else -> "Good Night"
+            }
+            
+            val emoji = when (hour) {
+                in 0..11 -> "☀️"
+                in 12..15 -> "🌤️" 
+                in 16..20 -> "🌆"
+                else -> "🌙"
+            }
 
-        loadDashboardData()
-        listenForAmbulanceUpdates()
-
-        // ===============================
-        // BUTTON CLICK LISTENERS
-        // ===============================
-
-        btnViewHospitals.setOnClickListener {
-            startActivity(Intent(this, HospitalListActivity::class.java))
-        }
-
-        btnRequestEmergency.setOnClickListener {
-            startActivity(Intent(this, EmergencyRequestActivity::class.java))
-        }
-
-        btnMyRequests.setOnClickListener {
-            startActivity(Intent(this, MyRequestsActivity::class.java))
-        }
-
-        btnBookAppointment.setOnClickListener {
-            startActivity(Intent(this, AppointmentActivity::class.java))
-        }
-
-        btnSOS.setOnClickListener {
-            sendEmergencyAlert()
-        }
-
-        btnLogout.setOnClickListener {
-            FirebaseAuth.getInstance().signOut()
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
+            txtWelcome.text = "$emoji $greeting,"
+            txtUserNameLabel.text = name
+        }.addOnFailureListener {
+            txtUserNameLabel.text = user.email
         }
     }
 
-    // ===============================
-    // Dashboard Data
-    // ===============================
-    private fun loadDashboardData() {
-
-        hospitalRef.addValueEventListener(object : ValueEventListener {
+    private fun setupStats() {
+        database.child("Hospitals").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-
-                var totalHospitals = 0
+                val totalHospitals = snapshot.childrenCount
                 var totalICU = 0
-
-                for (hospitalSnapshot in snapshot.children) {
-
-                    totalHospitals++
-
-                    val icuBeds = hospitalSnapshot
-                        .child("icuBedsAvailable")
-                        .getValue(Int::class.java) ?: 0
-
-                    totalICU += icuBeds
+                
+                for (hosp in snapshot.children) {
+                    totalICU += hosp.child("icuBedsAvailable").getValue(Int::class.java) ?: 0
                 }
 
-                txtTotalHospitals.text = totalHospitals.toString()
-                txtAvailableICU.text = totalICU.toString()
+                animateText(txtTotalHospitals, totalHospitals.toInt())
+                animateText(txtICUBeds, totalICU)
+                animateText(txtAmbulances, (totalHospitals * 2).toInt())
             }
-
             override fun onCancelled(error: DatabaseError) {}
         })
     }
 
-    // ===============================
-    // SOS Logic
-    // ===============================
+    private fun animateText(view: TextView, value: Int) {
+        val current = view.text.toString().toIntOrNull() ?: 0
+        if (current == value) return
+        
+        view.text = value.toString()
+        view.alpha = 0f
+        view.animate().alpha(1f).setDuration(500).start()
+    }
+
+    private fun setupClickListeners() {
+        findViewById<View>(R.id.cardViewHospitals).setOnClickListener {
+            startActivity(Intent(this, HospitalListActivity::class.java))
+        }
+        findViewById<View>(R.id.cardRequestEmergency).setOnClickListener {
+            startActivity(Intent(this, EmergencyRequestActivity::class.java))
+        }
+        findViewById<View>(R.id.cardMyRequests).setOnClickListener {
+            startActivity(Intent(this, MyRequestsActivity::class.java))
+        }
+        findViewById<View>(R.id.cardBookAppointment).setOnClickListener {
+            startActivity(Intent(this, AppointmentActivity::class.java))
+        }
+        findViewById<View>(R.id.cardSOS).setOnClickListener { sendEmergencyAlert() }
+        fabSOS.setOnClickListener { sendEmergencyAlert() }
+        
+        findViewById<View>(R.id.imgProfile).setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
+
+        cardNearbyMap.setOnClickListener {
+            startActivity(Intent(this, MapsActivity::class.java))
+        }
+    }
+
+    private fun setupBottomNav() {
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> true
+                R.id.nav_hospitals -> {
+                    startActivity(Intent(this, HospitalListActivity::class.java))
+                    false // Don't highlight to keep Home as active
+                }
+                R.id.nav_requests -> {
+                    startActivity(Intent(this, MyRequestsActivity::class.java))
+                    false
+                }
+                R.id.nav_logout -> {
+                    logoutUser()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun logoutUser() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Logout")
+            .setMessage("Are you sure you want to logout?")
+            .setPositiveButton("Yes") { _, _ ->
+                auth.signOut()
+                val intent = Intent(this, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+            }
+            .setNegativeButton("No", null)
+            .show()
+    }
+
     private fun sendEmergencyAlert() {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-        val fusedLocationClient =
-            LocationServices.getFusedLocationProviderClient(this)
-
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Toast.makeText(this, "Location permission required", Toast.LENGTH_SHORT).show()
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
             return
         }
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+        Toast.makeText(this, "Sending SOS Alert...", Toast.LENGTH_SHORT).show()
 
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location == null) {
-                Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Location error. Please enable GPS.", Toast.LENGTH_SHORT).show()
                 return@addOnSuccessListener
             }
-
-            val userLat = location.latitude
-            val userLng = location.longitude
-
-            hospitalRef.get().addOnSuccessListener { snapshot ->
-
-                var nearestHospitalId: String? = null
-                var minDistance = Double.MAX_VALUE
-
-                for (child in snapshot.children) {
-
-                    val hospital = child.getValue(Hospital::class.java)
-
-                    if (hospital != null && hospital.icuBedsAvailable > 0) {
-
-                        val distance = calculateDistance(
-                            userLat,
-                            userLng,
-                            hospital.latitude,
-                            hospital.longitude
-                        )
-
-                        if (distance < minDistance) {
-                            minDistance = distance
-                            nearestHospitalId = child.key
-                        }
-                    }
-                }
-
-                if (nearestHospitalId != null) {
-
-                    val requestRef = emergencyRef.push()
-
-                    val requestMap = HashMap<String, Any>()
-                    requestMap["userId"] = userId
-                    requestMap["hospitalId"] = nearestHospitalId!!
-                    requestMap["bedType"] = "Emergency SOS"
-                    requestMap["status"] = "Pending"
-                    requestMap["priority"] = "High"
-                    requestMap["timestamp"] = System.currentTimeMillis()
-
-                    requestRef.setValue(requestMap)
-
-                    Toast.makeText(
-                        this,
-                        "🚑 SOS Sent to Nearest Hospital!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+            
+            val userId = auth.currentUser?.uid ?: return@addOnSuccessListener
+            val sosRef = database.child("SOSAlerts").push()
+            
+            val sosMap = mapOf(
+                "userId" to userId,
+                "latitude" to location.latitude,
+                "longitude" to location.longitude,
+                "timestamp" to ServerValue.TIMESTAMP,
+                "status" to "Active"
+            )
+            
+            sosRef.setValue(sosMap).addOnCompleteListener {
+                Toast.makeText(this, "🚨 SOS Alert Sent! Emergency services notified.", Toast.LENGTH_LONG).show()
             }
         }
-    }
-
-    // ===============================
-    // Listen Ambulance Updates
-    // ===============================
-    private fun listenForAmbulanceUpdates() {
-
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-        emergencyRef.orderByChild("userId")
-            .equalTo(userId)
-            .addValueEventListener(object : ValueEventListener {
-
-                override fun onDataChange(snapshot: DataSnapshot) {
-
-                    for (child in snapshot.children) {
-
-                        val status = child.child("status").value?.toString() ?: ""
-
-                        if (status == "Ambulance On The Way") {
-
-                            Toast.makeText(
-                                this@PatientDashboardActivity,
-                                "🚑 Ambulance Dispatched!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                }
-
-                override fun onCancelled(error: DatabaseError) {}
-            })
-    }
-
-    // ===============================
-    // Distance Calculation
-    // ===============================
-    private fun calculateDistance(
-        lat1: Double,
-        lon1: Double,
-        lat2: Double,
-        lon2: Double
-    ): Double {
-
-        val radius = 6371.0
-
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) *
-                Math.cos(Math.toRadians(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2)
-
-        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
-        return radius * c
     }
 }

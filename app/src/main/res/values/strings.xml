@@ -16,4 +16,11 @@
     <string name="or_divider">OR</string>
     <string name="continue_with_google">Continue with Google</string>
     <string name="new_user_prompt">New user? Create account</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="title_activity_maps">Nearby Hospitals Map</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_hospitals">Hospitals</string>
+    <string name="nav_requests">Requests</string>
+    <string name="nav_logout">Logout</string>
 </resources>

@@ -12,8 +12,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.nhrmes.network.RetrofitClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.database.*
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class HospitalListActivity : AppCompatActivity() {
 
@@ -40,7 +44,11 @@ class HospitalListActivity : AppCompatActivity() {
         database = FirebaseDatabase.getInstance().getReference("Hospitals")
 
         requestLocationPermission()
-        loadHospitals()
+        
+        // You can choose between Firebase or Retrofit
+        // By default, we try the API first
+        loadHospitalsFromApi()
+        
         setupSearch()
     }
 
@@ -58,12 +66,35 @@ class HospitalListActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadHospitals() {
+    private fun loadHospitalsFromApi() {
+        RetrofitClient.instance.getHospitals("YOUR_API_KEY").enqueue(object : Callback<List<Hospital>> {
+            override fun onResponse(call: Call<List<Hospital>>, response: Response<List<Hospital>>) {
+                if (response.isSuccessful) {
+                    hospitalList.clear()
+                    fullHospitalList.clear()
+                    response.body()?.let {
+                        hospitalList.addAll(it)
+                        fullHospitalList.addAll(it)
+                    }
+                    sortByLocation()
+                } else {
+                    // Fallback to Firebase if API fails
+                    loadHospitalsFromFirebase()
+                    Toast.makeText(this@HospitalListActivity, "API Error, loading from Firebase", Toast.LENGTH_SHORT).show()
+                }
+            }
 
+            override fun onFailure(call: Call<List<Hospital>>, t: Throwable) {
+                // Fallback to Firebase if request fails
+                loadHospitalsFromFirebase()
+                Toast.makeText(this@HospitalListActivity, "Network Error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
+    }
+
+    private fun loadHospitalsFromFirebase() {
         database.addValueEventListener(object : ValueEventListener {
-
             override fun onDataChange(snapshot: DataSnapshot) {
-
                 hospitalList.clear()
                 fullHospitalList.clear()
 
@@ -74,24 +105,17 @@ class HospitalListActivity : AppCompatActivity() {
                         fullHospitalList.add(hospital)
                     }
                 }
-
                 sortByLocation()
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(
-                    this@HospitalListActivity,
-                    "Database error",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this@HospitalListActivity, "Database error", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
     private fun sortByLocation() {
-
-        val fusedLocationClient =
-            LocationServices.getFusedLocationProviderClient(this)
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -101,16 +125,13 @@ class HospitalListActivity : AppCompatActivity() {
 
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
-
                 if (location == null) return@addOnSuccessListener
 
                 val userLat = location.latitude
                 val userLng = location.longitude
 
                 for (hospital in hospitalList) {
-
                     val results = FloatArray(1)
-
                     Location.distanceBetween(
                         userLat,
                         userLng,
@@ -118,7 +139,6 @@ class HospitalListActivity : AppCompatActivity() {
                         hospital.longitude,
                         results
                     )
-
                     hospital.distance = results[0] / 1000.0
                 }
 
@@ -128,27 +148,17 @@ class HospitalListActivity : AppCompatActivity() {
     }
 
     private fun setupSearch() {
-
         etSearch.addTextChangedListener(object : TextWatcher {
-
             override fun afterTextChanged(s: Editable?) {}
-
-            override fun beforeTextChanged(
-                s: CharSequence?, start: Int, count: Int, after: Int
-            ) {}
-
-            override fun onTextChanged(
-                text: CharSequence?, start: Int, before: Int, count: Int
-            ) {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
                 filterHospitals(text.toString())
             }
         })
     }
 
     private fun filterHospitals(query: String) {
-
         hospitalList.clear()
-
         if (query.isEmpty()) {
             hospitalList.addAll(fullHospitalList)
         } else {
@@ -160,7 +170,6 @@ class HospitalListActivity : AppCompatActivity() {
                 }
             }
         }
-
         adapter.notifyDataSetChanged()
     }
 }

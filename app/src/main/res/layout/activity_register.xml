@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F7FB"
@@ -7,7 +8,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
         android:padding="24dp">
@@ -16,9 +17,10 @@
             android:layout_width="170dp"
             android:layout_height="140dp"
             android:layout_marginBottom="16dp"
-            android:src="@drawable/app_logo" />
+            android:src="@drawable/application_logo" />
 
         <TextView
+            android:id="@+id/registerTitle"
             android:text="Create Account"
             android:textSize="22sp"
             android:textStyle="bold"
@@ -31,6 +33,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:radius="20dp"
+            app:cardCornerRadius="20dp"
             android:elevation="8dp">
 
             <LinearLayout
@@ -39,29 +42,113 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
+                <LinearLayout
+                    android:id="@+id/roleSelectionLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:text="Register as:"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:textColor="#666"
+                        android:textSize="14sp" />
+
+                    <RadioGroup
+                        android:id="@+id/roleGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <RadioButton
+                            android:id="@+id/radioPatient"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Patient"
+                            android:checked="true" />
+
+                        <RadioButton
+                            android:id="@+id/radioDoctor"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Doctor" />
+                    </RadioGroup>
+                </LinearLayout>
+
+                <EditText
+                    android:id="@+id/name"
+                    android:hint="Full Name"
+                    android:inputType="textPersonName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:background="@android:color/transparent"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#DDD"
+                    android:layout_marginBottom="12dp"/>
+
+                <EditText
+                    android:id="@+id/phone"
+                    android:hint="Phone Number"
+                    android:inputType="phone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:background="@android:color/transparent"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#DDD"
+                    android:layout_marginBottom="12dp"/>
+
                 <EditText
                     android:id="@+id/email"
                     android:hint="Email Address"
                     android:inputType="textEmailAddress"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:background="@android:color/transparent"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#DDD"
+                    android:layout_marginBottom="12dp"/>
 
                 <EditText
                     android:id="@+id/pwd"
                     android:hint="Password"
                     android:inputType="textPassword"
-                    android:layout_marginTop="12dp"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:background="@android:color/transparent"/>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#DDD"
+                    android:layout_marginBottom="12dp"/>
 
                 <Button
                     android:id="@+id/register"
                     android:text="Register"
                     android:layout_marginTop="16dp"
-                    android:backgroundTint="#E91E63"
+                    android:backgroundTint="#0D6EFD"
                     android:textColor="@android:color/white"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    android:padding="12dp" />
 
             </LinearLayout>
         </androidx.cardview.widget.CardView>

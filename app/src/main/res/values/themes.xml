@@ -2,12 +2,18 @@
     <!-- Base application theme. -->
     <style name="Base.Theme.NHRMES" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorSecondary">@color/primary_light</item>
+        <item name="android:statusBarColor">@color/primary_dark</item>
 
         <!-- For Android 12+ splash screen -->
-        <item name="android:windowSplashScreenBackground">@color/colorPrimary</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/app_logo</item>
+        <item name="android:windowSplashScreenBackground">@color/primary</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/application_logo</item>
     </style>
 
     <style name="Theme.NHRMES" parent="Base.Theme.NHRMES" />
+
+    <style name="CircleImageView" parent="">
+        <item name="cornerSize">50%</item>
+    </style>
 </resources>

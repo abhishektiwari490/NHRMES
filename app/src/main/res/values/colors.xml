@@ -2,10 +2,30 @@
 <resources>
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
-    <color name="colorPrimary">#E91E63</color>
-    <color name="colorPrimaryDark">#C2185B</color>
-    <color name="colorAccent">#3F51B5</color>
-    <color name="textColorPrimary">#222222</color>
-    <color name="textColorSecondary">#777777</color>
-    <color name="dividerColor">#999999</color>
+
+    <!-- Material 3 Blue Primary Scheme -->
+    <color name="primary">#1565C0</color>
+    <color name="primary_light">#5E92F3</color>
+    <color name="primary_dark">#003C8F</color>
+
+    <!-- Secondary/Background -->
+    <color name="bg_light">#F5F7FB</color>
+    <color name="card_bg">#FFFFFF</color>
+    <color name="glass_white">#CCFFFFFF</color>
+
+    <!-- Availability Indicators -->
+    <color name="status_available">#4CAF50</color>
+    <color name="status_limited">#FF9800</color>
+    <color name="status_full">#F44336</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#1A1C1E</color>
+    <color name="text_secondary">#6C757D</color>
+
+    <!-- Legacy/Compatible -->
+    <color name="health_blue">#1565C0</color>
+    <color name="health_green">#4CAF50</color>
+    <color name="health_red">#F44336</color>
+    <color name="health_yellow">#FF9800</color>
+    <color name="dividerColor">#DEE2E6</color>
 </resources>
