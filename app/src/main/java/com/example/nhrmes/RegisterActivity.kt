@@ -2,8 +2,10 @@ package com.example.nhrmes
 
 import android.content.Intent
 import android.os.Bundle
+import android.text.Html
 import android.view.View
 import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
@@ -15,10 +17,14 @@ class RegisterActivity : AppCompatActivity() {
     private lateinit var phone: EditText
     private lateinit var email: EditText
     private lateinit var password: EditText
+    private lateinit var specialist: EditText
+    private lateinit var workingHospital: EditText
+    private lateinit var doctorFields: View
     private lateinit var registerBtn: Button
     private lateinit var roleGroup: RadioGroup
     private lateinit var roleSelectionLayout: View
     private lateinit var txtTitle: TextView
+    private lateinit var cbPrivacyPolicy: CheckBox
     
     private var selectedEntryPoint: String = "patient"
 
@@ -33,15 +39,39 @@ class RegisterActivity : AppCompatActivity() {
         phone = findViewById(R.id.phone)
         email = findViewById(R.id.email)
         password = findViewById(R.id.pwd)
+        specialist = findViewById(R.id.specialist)
+        workingHospital = findViewById(R.id.workingHospital)
+        doctorFields = findViewById(R.id.doctorFields)
+        
         registerBtn = findViewById(R.id.register)
         roleGroup = findViewById(R.id.roleGroup)
         roleSelectionLayout = findViewById(R.id.roleSelectionLayout)
         txtTitle = findViewById(R.id.registerTitle)
+        cbPrivacyPolicy = findViewById(R.id.cbPrivacyPolicy)
 
-        // Adjust UI for Government entry
+        cbPrivacyPolicy.text = Html.fromHtml("I agree to the <font color='#0D6EFD'><u>Privacy Policy</u></font>")
+        cbPrivacyPolicy.setOnLongClickListener {
+            showPrivacyPolicyDialog()
+            true
+        }
+
+        // Handle role selection changes to show/hide doctor fields
+        roleGroup.setOnCheckedChangeListener { _, checkedId ->
+            if (checkedId == R.id.radioDoctor) {
+                doctorFields.visibility = View.VISIBLE
+            } else {
+                doctorFields.visibility = View.GONE
+            }
+        }
+
+        // Adjust UI for pre-selected role
         if (selectedEntryPoint == "government") {
             roleSelectionLayout.visibility = View.GONE
             txtTitle.text = "Government Official Registration"
+            doctorFields.visibility = View.GONE
+        } else if (selectedEntryPoint == "doctor") {
+            roleGroup.check(R.id.radioDoctor)
+            doctorFields.visibility = View.VISIBLE
         }
 
         registerBtn.setOnClickListener {
@@ -49,7 +79,14 @@ class RegisterActivity : AppCompatActivity() {
             val phoneText = phone.text.toString().trim()
             val emailText = email.text.toString().trim()
             val pwdText = password.text.toString().trim()
+            val specialistText = specialist.text.toString().trim()
+            val hospitalText = workingHospital.text.toString().trim()
             
+            if (!cbPrivacyPolicy.isChecked) {
+                Toast.makeText(this, "Please accept the Privacy Policy to continue", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             // Determine role
             val role = if (selectedEntryPoint == "government") {
                 "government"
@@ -59,6 +96,11 @@ class RegisterActivity : AppCompatActivity() {
 
             if (nameText.isEmpty() || phoneText.isEmpty() || emailText.isEmpty() || pwdText.isEmpty()) {
                 Toast.makeText(this, "Fill all fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            if (role == "doctor" && (specialistText.isEmpty() || hospitalText.isEmpty())) {
+                Toast.makeText(this, "Doctors must provide specialist and hospital info", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -73,6 +115,11 @@ class RegisterActivity : AppCompatActivity() {
                         userMap["phone"] = phoneText
                         userMap["email"] = emailText
                         userMap["role"] = role
+                        
+                        if (role == "doctor") {
+                            userMap["specialist"] = specialistText
+                            userMap["hospital"] = hospitalText
+                        }
 
                         database.child(userId).setValue(userMap).addOnSuccessListener {
                             Toast.makeText(this, "Registered Successfully as $role", Toast.LENGTH_SHORT).show()
@@ -80,8 +127,7 @@ class RegisterActivity : AppCompatActivity() {
                             when (role) {
                                 "government" -> startActivity(Intent(this, GovernmentDashboardActivity::class.java))
                                 "doctor" -> {
-                                    val intent = Intent(this, AddDoctorActivity::class.java)
-                                    intent.putExtra("isFirstTime", true)
+                                    val intent = Intent(this, DoctorDashboardActivity::class.java)
                                     startActivity(intent)
                                 }
                                 else -> startActivity(Intent(this, PatientDashboardActivity::class.java))
@@ -93,5 +139,22 @@ class RegisterActivity : AppCompatActivity() {
                     }
                 }
         }
+    }
+
+    private fun showPrivacyPolicyDialog() {
+        val policy = """
+            <b>Privacy Policy for NHRMES</b><br><br>
+            1. <b>Data Collection:</b> We collect your name, phone number, and location only during emergencies to provide life-saving services.<br><br>
+            2. <b>Location Tracking:</b> Live location is used exclusively for ambulance dispatch and tracking. It is not shared with third parties.<br><br>
+            3. <b>Security:</b> Your health data is stored securely in encrypted databases.<br><br>
+            4. <b>Consent:</b> By using this app, you consent to our emergency protocols.
+        """.trimIndent()
+
+        AlertDialog.Builder(this)
+            .setTitle("Privacy Policy")
+            .setMessage(Html.fromHtml(policy))
+            .setPositiveButton("I Accept") { _, _ -> cbPrivacyPolicy.isChecked = true }
+            .setNegativeButton("Close", null)
+            .show()
     }
 }

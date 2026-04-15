@@ -1,6 +1,7 @@
 package com.example.nhrmes
 
 import android.os.Bundle
+import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -11,6 +12,10 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var editName: EditText
     private lateinit var editPhone: EditText
     private lateinit var txtEmail: TextView
+    private lateinit var txtEmailTop: TextView
+    private lateinit var editSpecialist: EditText
+    private lateinit var editHospital: EditText
+    private lateinit var doctorFields: View
     private lateinit var btnUpdate: Button
     private lateinit var userRef: DatabaseReference
 
@@ -21,6 +26,10 @@ class ProfileActivity : AppCompatActivity() {
         editName = findViewById(R.id.profileName)
         editPhone = findViewById(R.id.profilePhone)
         txtEmail = findViewById(R.id.profileEmail)
+        txtEmailTop = findViewById(R.id.txtProfileEmailTop)
+        editSpecialist = findViewById(R.id.profileSpecialist)
+        editHospital = findViewById(R.id.profileWorkingHospital)
+        doctorFields = findViewById(R.id.profileDoctorFields)
         btnUpdate = findViewById(R.id.btnUpdateProfile)
 
         val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
@@ -39,10 +48,20 @@ class ProfileActivity : AppCompatActivity() {
                 val name = snapshot.child("name").value?.toString() ?: ""
                 val phone = snapshot.child("phone").value?.toString() ?: ""
                 val email = snapshot.child("email").value?.toString() ?: ""
+                val role = snapshot.child("role").value?.toString() ?: "patient"
 
                 editName.setText(name)
                 editPhone.setText(phone)
                 txtEmail.text = email
+                txtEmailTop.text = email
+                
+                if (role == "doctor") {
+                    doctorFields.visibility = View.VISIBLE
+                    editSpecialist.setText(snapshot.child("specialist").value?.toString() ?: "")
+                    editHospital.setText(snapshot.child("hospital").value?.toString() ?: "")
+                } else {
+                    doctorFields.visibility = View.GONE
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -63,6 +82,11 @@ class ProfileActivity : AppCompatActivity() {
         val updates = HashMap<String, Any>()
         updates["name"] = name
         updates["phone"] = phone
+        
+        if (doctorFields.visibility == View.VISIBLE) {
+            updates["specialist"] = editSpecialist.text.toString().trim()
+            updates["hospital"] = editHospital.text.toString().trim()
+        }
 
         userRef.updateChildren(updates).addOnCompleteListener { task ->
             if (task.isSuccessful) {

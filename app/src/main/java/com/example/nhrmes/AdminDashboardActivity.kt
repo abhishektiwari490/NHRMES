@@ -83,7 +83,7 @@ class AdminDashboardActivity : AppCompatActivity() {
 
         btnLogoutAdmin.setOnClickListener {
             auth.signOut()
-            startActivity(Intent(this, MainActivity::class.java))
+            startActivity(Intent(this, RoleSelectionActivity::class.java))
             finish()
         }
 
@@ -159,13 +159,11 @@ class AdminDashboardActivity : AppCompatActivity() {
         val hospId = myHospitalId ?: return
         database.child("Hospitals").child(hospId).addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val icu = snapshot.child("icuBedsAvailable").value?.toString() ?: "0"
-                val oxy = snapshot.child("oxygenBedsAvailable").value?.toString() ?: "0"
-                val vent = snapshot.child("ventilatorsAvailable").value?.toString() ?: "0"
+                val hospital = snapshot.getValue(Hospital::class.java)
                 
-                txtAdminICU.text = icu
-                txtAdminOxygen.text = oxy
-                txtAdminVent.text = vent
+                txtAdminICU.text = hospital?.icuBedsAvailable?.toString() ?: "0"
+                txtAdminOxygen.text = hospital?.oxygenBedsAvailable?.toString() ?: "0"
+                txtAdminVent.text = hospital?.ventilatorsAvailable?.toString() ?: "0"
             }
             override fun onCancelled(error: DatabaseError) {}
         })
@@ -174,26 +172,63 @@ class AdminDashboardActivity : AppCompatActivity() {
     private fun showUpdateResourcesDialog() {
         val hospId = myHospitalId ?: return
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_update_resources, null)
+        
         val etICU = dialogView.findViewById<EditText>(R.id.etUpdateICU)
         val etOxy = dialogView.findViewById<EditText>(R.id.etUpdateOxygen)
         val etVent = dialogView.findViewById<EditText>(R.id.etUpdateVent)
+        
+        // Blood inputs
+        val etBloodAPos = dialogView.findViewById<EditText>(R.id.etBloodAPos)
+        val etBloodANeg = dialogView.findViewById<EditText>(R.id.etBloodANeg)
+        val etBloodBPos = dialogView.findViewById<EditText>(R.id.etBloodBPos)
+        val etBloodBNeg = dialogView.findViewById<EditText>(R.id.etBloodBNeg)
+        val etBloodOPos = dialogView.findViewById<EditText>(R.id.etBloodOPos)
+        val etBloodONeg = dialogView.findViewById<EditText>(R.id.etBloodONeg)
+        val etBloodABPos = dialogView.findViewById<EditText>(R.id.etBloodABPos)
+        val etBloodABNeg = dialogView.findViewById<EditText>(R.id.etBloodABNeg)
 
-        etICU.setText(txtAdminICU.text)
-        etOxy.setText(txtAdminOxygen.text)
-        etVent.setText(txtAdminVent.text)
+        // Pre-fill existing values
+        database.child("Hospitals").child(hospId).get().addOnSuccessListener { snapshot ->
+            val h = snapshot.getValue(Hospital::class.java) ?: return@addOnSuccessListener
+            etICU.setText(h.icuBedsAvailable.toString())
+            etOxy.setText(h.oxygenBedsAvailable.toString())
+            etVent.setText(h.ventilatorsAvailable.toString())
+            
+            etBloodAPos.setText(h.bloodStock["A+"].toString())
+            etBloodANeg.setText(h.bloodStock["A-"].toString())
+            etBloodBPos.setText(h.bloodStock["B+"].toString())
+            etBloodBNeg.setText(h.bloodStock["B-"].toString())
+            etBloodOPos.setText(h.bloodStock["O+"].toString())
+            etBloodONeg.setText(h.bloodStock["O-"].toString())
+            etBloodABPos.setText(h.bloodStock["AB+"].toString())
+            etBloodABNeg.setText(h.bloodStock["AB-"].toString())
+        }
 
         AlertDialog.Builder(this)
-            .setTitle("Update Resource Availability")
+            .setTitle("Update Resource Inventory")
             .setView(dialogView)
-            .setPositiveButton("Update") { _, _ ->
-                val updates = mapOf(
+            .setPositiveButton("Update All") { _, _ ->
+                val bloodStock = mapOf(
+                    "A+" to (etBloodAPos.text.toString().toIntOrNull() ?: 0),
+                    "A-" to (etBloodANeg.text.toString().toIntOrNull() ?: 0),
+                    "B+" to (etBloodBPos.text.toString().toIntOrNull() ?: 0),
+                    "B-" to (etBloodBNeg.text.toString().toIntOrNull() ?: 0),
+                    "O+" to (etBloodOPos.text.toString().toIntOrNull() ?: 0),
+                    "O-" to (etBloodONeg.text.toString().toIntOrNull() ?: 0),
+                    "AB+" to (etBloodABPos.text.toString().toIntOrNull() ?: 0),
+                    "AB-" to (etBloodABNeg.text.toString().toIntOrNull() ?: 0)
+                )
+
+                val updates = mutableMapOf<String, Any>(
                     "icuBedsAvailable" to (etICU.text.toString().toIntOrNull() ?: 0),
                     "oxygenBedsAvailable" to (etOxy.text.toString().toIntOrNull() ?: 0),
-                    "ventilatorsAvailable" to (etVent.text.toString().toIntOrNull() ?: 0)
+                    "ventilatorsAvailable" to (etVent.text.toString().toIntOrNull() ?: 0),
+                    "bloodStock" to bloodStock
                 )
+                
                 database.child("Hospitals").child(hospId).updateChildren(updates)
                     .addOnSuccessListener {
-                        Toast.makeText(this, "Resources Updated", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Inventory Updated Successfully", Toast.LENGTH_SHORT).show()
                     }
             }
             .setNegativeButton("Cancel", null)

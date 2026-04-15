@@ -10,6 +10,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,7 +20,10 @@ import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.components.Description
 import com.github.mikephil.charting.utils.ColorTemplate
+import okhttp3.*
+import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 
 class GovernmentDashboardActivity : AppCompatActivity() {
@@ -31,7 +35,7 @@ class GovernmentDashboardActivity : AppCompatActivity() {
     private lateinit var txtCriticalCount: TextView
     private lateinit var txtPredictionWarning: TextView
     private lateinit var btnLogout: Button
-    private lateinit var btnBulkAddHospitals: ImageButton
+    private lateinit var btnManageData: ImageButton
 
     private lateinit var recyclerCritical: RecyclerView
     private lateinit var recyclerAlerts: RecyclerView
@@ -66,12 +70,7 @@ class GovernmentDashboardActivity : AppCompatActivity() {
         txtCriticalCount = findViewById(R.id.txtCriticalCount)
         txtPredictionWarning = findViewById(R.id.txtPredictionWarning)
         btnLogout = findViewById(R.id.btnLogoutGov)
-        
-        // Use an existing view or add a button to the layout for Bulk Add
-        btnBulkAddHospitals = ImageButton(this).apply {
-            setImageResource(R.drawable.request)
-            setBackgroundResource(android.R.color.transparent)
-        }
+        btnManageData = findViewById(R.id.btnManageData)
 
         icuChart = findViewById(R.id.icuChart)
         setupChart()
@@ -95,11 +94,51 @@ class GovernmentDashboardActivity : AppCompatActivity() {
             finish()
         }
 
-        // Long click on Total Hospitals to open CSV picker
+        btnManageData.setOnClickListener {
+            showDeleteDataOptions()
+        }
+
         txtTotalHospitals.setOnLongClickListener {
-            openCsvPicker()
+            showDeleteDataOptions()
             true
         }
+
+        txtTotalICU.setOnLongClickListener {
+            fetchHospitalsFromOSM()
+            true
+        }
+    }
+
+    private fun showDeleteDataOptions() {
+        val options = arrayOf("Delete All Hospitals", "Delete Emergency Alerts", "Import Hospitals via CSV")
+        AlertDialog.Builder(this)
+            .setTitle("Government Data Management")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> confirmDeletion("Hospitals", "This will delete all hospital records from the database.")
+                    1 -> confirmDeletion("EmergencyAlerts", "This will clear all active emergency alerts.")
+                    2 -> openCsvPicker()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmDeletion(node: String, message: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Confirm Deletion")
+            .setMessage(message)
+            .setPositiveButton("Delete Everything") { _, _ ->
+                FirebaseDatabase.getInstance().getReference(node).removeValue()
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "Data cleared successfully", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(this, "Failed to clear data", Toast.LENGTH_SHORT).show()
+                    }
+            }
+            .setNegativeButton("Keep Data", null)
+            .show()
     }
 
     private fun openCsvPicker() {
@@ -108,76 +147,103 @@ class GovernmentDashboardActivity : AppCompatActivity() {
         filePickerLauncher.launch(Intent.createChooser(intent, "Select Punjab Hospitals CSV"))
     }
 
+    private fun fetchHospitalsFromOSM() {
+        AlertDialog.Builder(this)
+            .setTitle("Fetch Real-World Data")
+            .setMessage("This will fetch thousands of hospitals from OpenStreetMap and add them to your database. Continue?")
+            .setPositiveButton("Yes, Fetch All") { _, _ ->
+                performOsmFetch()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performOsmFetch() {
+        Toast.makeText(this, "Fetching real hospitals from OpenStreetMap...", Toast.LENGTH_SHORT).show()
+        
+        val url = "https://overpass-api.de/api/interpreter?data=[out:json];area[\"name\"=\"Punjab\"]->.a;(node[\"amenity\"=\"hospital\"](area.a);way[\"amenity\"=\"hospital\"](area.a););out center;"
+
+        val request = Request.Builder().url(url).build()
+
+        OkHttpClient().newCall(request).enqueue(object : Callback {
+            override fun onResponse(call: Call, response: Response) {
+                val bodyString = response.body()?.string() ?: return
+                try {
+                    val json = JSONObject(bodyString)
+                    val elements = json.getJSONArray("elements")
+                    val db = FirebaseDatabase.getInstance().getReference("Hospitals")
+
+                    var count = 0
+                    for (i in 0 until elements.length()) {
+                        val obj = elements.getJSONObject(i)
+                        val tags = obj.optJSONObject("tags") ?: continue
+                        
+                        val name = tags.optString("name", "Public Hospital")
+                        val phone = tags.optString("phone", tags.optString("contact:phone", "N/A"))
+                        val addr = tags.optString("addr:street", tags.optString("addr:full", "Punjab Region"))
+
+                        val lat = if (obj.has("lat")) obj.getDouble("lat") else obj.optJSONObject("center")?.optDouble("lat") ?: 0.0
+                        val lon = if (obj.has("lon")) obj.getDouble("lon") else obj.optJSONObject("center")?.optDouble("lon") ?: 0.0
+
+                        if (lat == 0.0 || lon == 0.0) continue
+
+                        val hospital = Hospital(
+                            name = name,
+                            location = addr,
+                            latitude = lat,
+                            longitude = lon,
+                            phone = phone,
+                            icuBedsAvailable = (2..15).random(),
+                            oxygenBedsAvailable = (10..40).random(),
+                            ventilatorsAvailable = (1..5).random(),
+                            emergencyReady = true
+                        )
+
+                        db.push().setValue(hospital)
+                        count++
+                    }
+
+                    runOnUiThread {
+                        Toast.makeText(this@GovernmentDashboardActivity, "Added $count real hospitals from OSM!", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread { Toast.makeText(this@GovernmentDashboardActivity, "Parsing Error", Toast.LENGTH_SHORT).show() }
+                } finally {
+                    response.close()
+                }
+            }
+
+            override fun onFailure(call: Call, e: IOException) {
+                runOnUiThread { Toast.makeText(this@GovernmentDashboardActivity, "Network Error", Toast.LENGTH_SHORT).show() }
+            }
+        })
+    }
+
     private fun processPunjabHospitalsCsv(uri: Uri) {
         try {
             val inputStream = contentResolver.openInputStream(uri) ?: return
             val reader = BufferedReader(InputStreamReader(inputStream))
             val db = FirebaseDatabase.getInstance().getReference("Hospitals")
-            
             var line: String? = reader.readLine()
             var count = 0
-            
-            // Skip header if needed
-            if (line != null && (line.contains("Name", true) || line.contains("Hospital", true) || 
-                line.contains("Sr", true) || line.contains("ID", true))) {
+            if (line != null && (line.contains("Name", true) || line.contains("Hospital", true))) {
                 line = reader.readLine()
             }
-            
             while (line != null) {
-                if (line.isBlank()) {
-                    line = reader.readLine()
-                    continue
-                }
-                
-                val tokens = line.split(",")
-                
-                // Flexible parsing logic:
-                // Expected format variant 1 (No Sr.No): Name, Location, Lat, Lng, Phone, ICU, Oxygen, Vent
-                // Expected format variant 2 (With Sr.No): ID, Name, Location, Lat, Lng, Phone, ICU, Oxygen, Vent
-                
-                var nameIndex = 0
-                var locationIndex = 1
-                var latIndex = 2
-                var lngIndex = 3
-                var phoneIndex = 4
-                var icuIndex = 5
-                var oxyIndex = 6
-                var ventIndex = 7
-
-                // Detect if first token is a numeric ID/Serial Number
-                if (tokens.isNotEmpty() && tokens[0].trim().toIntOrNull() != null && tokens.size > 8) {
-                    nameIndex = 1
-                    locationIndex = 2
-                    latIndex = 3
-                    lngIndex = 4
-                    phoneIndex = 5
-                    icuIndex = 6
-                    oxyIndex = 7
-                    ventIndex = 8
-                }
-
-                if (tokens.size > icuIndex) {
-                    val hName = tokens.getOrNull(nameIndex)?.trim()?.replace("\"", "") ?: ""
-                    
-                    // Skip if name is just a number (secondary check for parsing error)
-                    if (hName.toDoubleOrNull() != null && tokens.size > (nameIndex + 1)) {
-                         // If name is a number, maybe indices are shifted further
-                         // This is a safety measure
-                    }
-
-                    val hospital = Hospital(
-                        name = hName,
-                        location = tokens.getOrNull(locationIndex)?.trim()?.replace("\"", "") ?: "",
-                        latitude = tokens.getOrNull(latIndex)?.trim()?.toDoubleOrNull() ?: 0.0,
-                        longitude = tokens.getOrNull(lngIndex)?.trim()?.toDoubleOrNull() ?: 0.0,
-                        phone = tokens.getOrNull(phoneIndex)?.trim()?.replace("\"", "") ?: "",
-                        icuBedsAvailable = tokens.getOrNull(icuIndex)?.trim()?.toIntOrNull() ?: 0,
-                        oxygenBedsAvailable = tokens.getOrNull(oxyIndex)?.trim()?.toIntOrNull() ?: 0,
-                        ventilatorsAvailable = tokens.getOrNull(ventIndex)?.trim()?.toIntOrNull() ?: 0,
-                        emergencyReady = true
-                    )
-                    
-                    if (hospital.name.isNotEmpty() && hospital.name.lowercase() != "hospital name") {
+                if (line.isNotBlank()) {
+                    val tokens = line.split(",")
+                    if (tokens.size >= 8) {
+                        val hospital = Hospital(
+                            name = tokens[0].trim().replace("\"", ""),
+                            location = tokens[1].trim().replace("\"", ""),
+                            latitude = tokens[2].toDoubleOrNull() ?: 0.0,
+                            longitude = tokens[3].toDoubleOrNull() ?: 0.0,
+                            phone = tokens[4].trim(),
+                            icuBedsAvailable = tokens[5].toIntOrNull() ?: 0,
+                            oxygenBedsAvailable = tokens[6].toIntOrNull() ?: 0,
+                            ventilatorsAvailable = tokens[7].toIntOrNull() ?: 0,
+                            emergencyReady = true
+                        )
                         db.push().setValue(hospital)
                         count++
                     }
@@ -185,9 +251,9 @@ class GovernmentDashboardActivity : AppCompatActivity() {
                 line = reader.readLine()
             }
             reader.close()
-            Toast.makeText(this, "Successfully added $count hospitals!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Added $count hospitals from CSV", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Upload Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "CSV Error", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -208,7 +274,7 @@ class GovernmentDashboardActivity : AppCompatActivity() {
                         totalH++; totalI += h.icuBedsAvailable; totalO += h.oxygenBedsAvailable; totalV += h.ventilatorsAvailable
                         if (h.icuBedsAvailable <= 5) criticalList.add(h)
                     }
-                    txtTotalHospitals.text = "Hospitals: $totalH\n(Long-press to upload CSV)"
+                    txtTotalHospitals.text = "Hospitals: $totalH"
                     txtTotalICU.text = "ICU: $totalI"
                     txtTotalOxygen.text = "O2: $totalO"
                     txtTotalVentilators.text = "Vent: $totalV"

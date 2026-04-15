@@ -1,6 +1,7 @@
 package com.example.nhrmes
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -12,6 +13,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import com.google.android.gms.auth.api.signin.*
 import com.google.android.gms.common.api.ApiException
+import com.google.android.material.button.MaterialButton
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.FirebaseDatabase
@@ -29,8 +31,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var googleCustomBtn: Button
     private lateinit var registerTxt: TextView
     private lateinit var forgotTxt: TextView
-    private lateinit var btnBiometric: ImageButton
+    private lateinit var btnBiometric: MaterialButton
     private lateinit var txtLoginTitle: TextView
+    private lateinit var cbRememberMe: CheckBox
+    private lateinit var loginProgress: ProgressBar
 
     private lateinit var executor: Executor
     private lateinit var biometricPrompt: BiometricPrompt
@@ -45,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         selectedRole = intent.getStringExtra("SELECTED_ROLE") ?: "patient"
 
+        // Initialize Views
         email = findViewById(R.id.email)
         password = findViewById(R.id.pwd)
         loginBtn = findViewById(R.id.loginbtn)
@@ -53,7 +58,10 @@ class MainActivity : AppCompatActivity() {
         forgotTxt = findViewById(R.id.forgotTxt)
         btnBiometric = findViewById(R.id.btnBiometric)
         txtLoginTitle = findViewById(R.id.loginTitle)
+        cbRememberMe = findViewById(R.id.cbRememberMe)
+        loginProgress = findViewById(R.id.loginProgress)
 
+        loadSavedCredentials()
         updateUIForRole()
         setupBiometric()
 
@@ -86,11 +94,19 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            setLoading(true)
+
             auth.signInWithEmailAndPassword(emailText, pwdText)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
+                        if (cbRememberMe.isChecked) {
+                            saveCredentials(emailText, pwdText)
+                        } else {
+                            clearCredentials()
+                        }
                         verifyRoleAndNavigate()
                     } else {
+                        setLoading(false)
                         Toast.makeText(this, task.exception?.message, Toast.LENGTH_LONG).show()
                     }
                 }
@@ -115,6 +131,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setLoading(isLoading: Boolean) {
+        loginBtn.isEnabled = !isLoading
+        loginBtn.text = if (isLoading) "" else "Login"
+        loginProgress.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    private fun saveCredentials(emailStr: String, passStr: String) {
+        val sharedPref = getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putString("email", emailStr)
+            putString("pass", passStr)
+            putBoolean("remember", true)
+            apply()
+        }
+    }
+
+    private fun loadSavedCredentials() {
+        val sharedPref = getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
+        if (sharedPref.getBoolean("remember", false)) {
+            email.setText(sharedPref.getString("email", ""))
+            password.setText(sharedPref.getString("pass", ""))
+            cbRememberMe.isChecked = true
+        }
+    }
+
+    private fun clearCredentials() {
+        val sharedPref = getSharedPreferences("LoginPrefs", Context.MODE_PRIVATE)
+        sharedPref.edit().clear().apply()
+    }
+
     private fun updateUIForRole() {
         txtLoginTitle.text = when (selectedRole) {
             "doctor" -> "Doctor Login"
@@ -122,7 +168,6 @@ class MainActivity : AppCompatActivity() {
             else -> "Patient Login"
         }
         
-        // Show register text for all roles now
         registerTxt.visibility = View.VISIBLE
         googleCustomBtn.visibility = if (selectedRole == "patient") View.VISIBLE else View.GONE
     }
@@ -143,9 +188,13 @@ class MainActivity : AppCompatActivity() {
                     }
                     finish()
                 } else {
+                    setLoading(false)
                     auth.signOut()
                     Toast.makeText(this, "Access Denied: You are not authorized for this portal", Toast.LENGTH_LONG).show()
                 }
+            }.addOnFailureListener {
+                setLoading(false)
+                Toast.makeText(this, "Verification failed", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -156,19 +205,14 @@ class MainActivity : AppCompatActivity() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     if (auth.currentUser != null) verifyRoleAndNavigate()
-                }
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                }
-                override fun onAuthenticationFailed() {
-                    super.onAuthenticationFailed()
+                    else Toast.makeText(this@MainActivity, "Please login with password first", Toast.LENGTH_SHORT).show()
                 }
             })
 
         promptInfo = BiometricPrompt.PromptInfo.Builder()
             .setTitle("Biometric Login")
-            .setSubtitle("Log in using your biometric credential")
-            .setNegativeButtonText("Use account password")
+            .setSubtitle("Log in using your fingerprint")
+            .setNegativeButtonText("Use password")
             .build()
     }
 

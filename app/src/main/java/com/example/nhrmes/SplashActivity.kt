@@ -47,7 +47,7 @@ class SplashActivity : AppCompatActivity() {
             if (user != null) {
                 showBiometricPrompt()
             } else {
-                startActivity(Intent(this, MainActivity::class.java))
+                startActivity(Intent(this, RoleSelectionActivity::class.java))
                 finish()
             }
         }, 2500)
@@ -96,7 +96,7 @@ class SplashActivity : AppCompatActivity() {
                 }
                 finish()
             }.addOnFailureListener {
-                startActivity(Intent(this, MainActivity::class.java))
+                startActivity(Intent(this, RoleSelectionActivity::class.java))
                 finish()
             }
     }

@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 
@@ -19,11 +20,12 @@ class DoctorDashboardActivity : AppCompatActivity() {
     private lateinit var txtPending: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var btnLogout: Button
+    private lateinit var switchAvailability: SwitchMaterial
 
     private lateinit var database: DatabaseReference
     private val auth = FirebaseAuth.getInstance()
     private val appointmentList = mutableListOf<Appointment>()
-    private lateinit var adapter: MyAppointmentAdapter // Reusing your existing adapter
+    private lateinit var adapter: MyAppointmentAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +37,7 @@ class DoctorDashboardActivity : AppCompatActivity() {
         txtPending = findViewById(R.id.txtPendingAppointments)
         recyclerView = findViewById(R.id.recyclerDoctorAppointments)
         btnLogout = findViewById(R.id.btnLogoutDoctor)
+        switchAvailability = findViewById(R.id.switchAvailability)
 
         database = FirebaseDatabase.getInstance().reference
         
@@ -43,6 +46,7 @@ class DoctorDashboardActivity : AppCompatActivity() {
         recyclerView.adapter = adapter
 
         fetchDoctorData()
+        setupAvailabilityToggle()
 
         btnLogout.setOnClickListener {
             auth.signOut()
@@ -51,34 +55,45 @@ class DoctorDashboardActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupAvailabilityToggle() {
+        val uid = auth.currentUser?.uid ?: return
+        val statusRef = database.child("Doctors").child(uid).child("isOnline")
+        
+        // Initial state
+        statusRef.get().addOnSuccessListener { snapshot ->
+            switchAvailability.isChecked = snapshot.getValue(Boolean::class.java) ?: true
+        }
+
+        switchAvailability.setOnCheckedChangeListener { _, isChecked ->
+            statusRef.setValue(isChecked).addOnSuccessListener {
+                val msg = if (isChecked) "You are now Online" else "You are now Offline"
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun fetchDoctorData() {
         val uid = auth.currentUser?.uid ?: return
         
-        // 1. Get Doctor info from Doctors node (where they registered their specialty)
-        database.child("Doctors").orderByChild("id").equalTo(uid).get().addOnSuccessListener { snapshot ->
+        database.child("Doctors").child(uid).get().addOnSuccessListener { snapshot ->
             if (snapshot.exists()) {
-                for (doc in snapshot.children) {
-                    val name = doc.child("name").value?.toString() ?: "Doctor"
-                    val specialty = doc.child("specialist").value?.toString() ?: "General"
-                    txtWelcome.text = "Welcome, Dr. $name"
-                    txtSpecialty.text = specialty
-                    
-                    // 2. Load Appointments for this doctor
-                    loadAppointments(name)
-                }
+                val name = snapshot.child("name").value?.toString() ?: "Doctor"
+                val specialty = snapshot.child("specialist").value?.toString() ?: "General"
+                txtWelcome.text = "Welcome, Dr. $name"
+                txtSpecialty.text = specialty
+                loadAppointments(uid)
             } else {
-                // If not in Doctors node yet, fallback to Users node
                 database.child("Users").child(uid).get().addOnSuccessListener { userSnap ->
                     val name = userSnap.child("name").value?.toString() ?: "Doctor"
                     txtWelcome.text = "Welcome, Dr. $name"
-                    loadAppointments(name)
+                    loadAppointments(uid)
                 }
             }
         }
     }
 
-    private fun loadAppointments(doctorName: String) {
-        database.child("Appointments").orderByChild("specialist").equalTo(doctorName)
+    private fun loadAppointments(doctorId: String) {
+        database.child("Appointments").orderByChild("doctorId").equalTo(doctorId)
             .addValueEventListener(object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
                     appointmentList.clear()

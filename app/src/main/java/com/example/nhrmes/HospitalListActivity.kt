@@ -1,6 +1,7 @@
 package com.example.nhrmes
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.Bundle
@@ -14,6 +15,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.nhrmes.network.RetrofitClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.database.*
 import retrofit2.Call
 import retrofit2.Callback
@@ -23,6 +27,8 @@ class HospitalListActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var etSearch: EditText
+    private lateinit var chipGroup: ChipGroup
+    private lateinit var fabMap: FloatingActionButton
     private lateinit var database: DatabaseReference
     private lateinit var adapter: HospitalAdapter
 
@@ -35,6 +41,8 @@ class HospitalListActivity : AppCompatActivity() {
 
         recyclerView = findViewById(R.id.recyclerHospitals)
         etSearch = findViewById(R.id.etSearch)
+        chipGroup = findViewById(R.id.chipGroupFilters)
+        fabMap = findViewById(R.id.fabMap)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
 
@@ -44,52 +52,20 @@ class HospitalListActivity : AppCompatActivity() {
         database = FirebaseDatabase.getInstance().getReference("Hospitals")
 
         requestLocationPermission()
-        
-        // You can choose between Firebase or Retrofit
-        // By default, we try the API first
-        loadHospitalsFromApi()
+        loadHospitalsFromFirebase()
         
         setupSearch()
-    }
-
-    private fun requestLocationPermission() {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                100
-            )
+        setupFilters()
+        
+        fabMap.setOnClickListener {
+            startActivity(Intent(this, MapsActivity::class.java))
         }
     }
 
-    private fun loadHospitalsFromApi() {
-        RetrofitClient.instance.getHospitals("YOUR_API_KEY").enqueue(object : Callback<List<Hospital>> {
-            override fun onResponse(call: Call<List<Hospital>>, response: Response<List<Hospital>>) {
-                if (response.isSuccessful) {
-                    hospitalList.clear()
-                    fullHospitalList.clear()
-                    response.body()?.let {
-                        hospitalList.addAll(it)
-                        fullHospitalList.addAll(it)
-                    }
-                    sortByLocation()
-                } else {
-                    // Fallback to Firebase if API fails
-                    loadHospitalsFromFirebase()
-                    Toast.makeText(this@HospitalListActivity, "API Error, loading from Firebase", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            override fun onFailure(call: Call<List<Hospital>>, t: Throwable) {
-                // Fallback to Firebase if request fails
-                loadHospitalsFromFirebase()
-                Toast.makeText(this@HospitalListActivity, "Network Error: ${t.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
+    private fun requestLocationPermission() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 100)
+        }
     }
 
     private fun loadHospitalsFromFirebase() {
@@ -107,44 +83,53 @@ class HospitalListActivity : AppCompatActivity() {
                 }
                 sortByLocation()
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                Toast.makeText(this@HospitalListActivity, "Database error", Toast.LENGTH_SHORT).show()
-            }
+            override fun onCancelled(error: DatabaseError) {}
         })
+    }
+
+    private fun setupFilters() {
+        chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
+            val selectedChipId = checkedIds.firstOrNull() ?: R.id.chipAll
+            applyFilter(selectedChipId)
+        }
+    }
+
+    private fun applyFilter(chipId: Int) {
+        hospitalList.clear()
+        when (chipId) {
+            R.id.chipAll -> hospitalList.addAll(fullHospitalList)
+            R.id.chipICU -> {
+                hospitalList.addAll(fullHospitalList.filter { it.icuBedsAvailable > 0 })
+            }
+            R.id.chipOxygen -> {
+                hospitalList.addAll(fullHospitalList.filter { it.oxygenBedsAvailable > 0 })
+            }
+            R.id.chipBlood -> {
+                hospitalList.addAll(fullHospitalList.filter { 
+                    it.bloodStock.values.any { stock -> stock > 0 } 
+                })
+            }
+            R.id.chipNearby -> {
+                hospitalList.addAll(fullHospitalList.filter { it.distance < 10.0 })
+            }
+        }
+        adapter.notifyDataSetChanged()
     }
 
     private fun sortByLocation() {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
 
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) return
-
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                if (location == null) return@addOnSuccessListener
-
-                val userLat = location.latitude
-                val userLng = location.longitude
-
-                for (hospital in hospitalList) {
-                    val results = FloatArray(1)
-                    Location.distanceBetween(
-                        userLat,
-                        userLng,
-                        hospital.latitude,
-                        hospital.longitude,
-                        results
-                    )
-                    hospital.distance = results[0] / 1000.0
-                }
-
-                hospitalList.sortBy { it.distance }
-                adapter.notifyDataSetChanged()
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location == null) return@addOnSuccessListener
+            for (hospital in fullHospitalList) {
+                val results = FloatArray(1)
+                Location.distanceBetween(location.latitude, location.longitude, hospital.latitude, hospital.longitude, results)
+                hospital.distance = results[0] / 1000.0
             }
+            fullHospitalList.sortBy { it.distance }
+            applyFilter(chipGroup.checkedChipId)
+        }
     }
 
     private fun setupSearch() {
@@ -159,13 +144,12 @@ class HospitalListActivity : AppCompatActivity() {
 
     private fun filterHospitals(query: String) {
         hospitalList.clear()
+        val baseList = fullHospitalList // Apply search on all data
         if (query.isEmpty()) {
-            hospitalList.addAll(fullHospitalList)
+            hospitalList.addAll(baseList)
         } else {
-            for (hospital in fullHospitalList) {
-                if (hospital.name.contains(query, true)
-                    || hospital.location.contains(query, true)
-                ) {
+            for (hospital in baseList) {
+                if (hospital.name.contains(query, true) || hospital.location.contains(query, true)) {
                     hospitalList.add(hospital)
                 }
             }

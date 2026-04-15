@@ -63,10 +63,18 @@ class MyRequestAdapter(
 
                     holder.txtStatus.text =
                         "🚑 Ambulance On The Way\nETA: $eta\nDistance: $distance"
+                    
+                    // NEW: Track Ambulance Button
+                    holder.btnMap.text = "Track Live"
+                    holder.btnMap.setOnClickListener {
+                        val intent = Intent(holder.itemView.context, AmbulanceTrackingActivity::class.java)
+                        intent.putExtra("REQUEST_ID", id)
+                        holder.itemView.context.startActivity(intent)
+                    }
 
                 } else {
-
                     holder.txtStatus.text = item.status
+                    holder.btnMap.text = "View Map"
                 }
 
                 setStatusColor(holder.txtStatus, item.status)
@@ -161,14 +169,16 @@ class MyRequestAdapter(
 
                     holder.itemView.context.startActivity(intent)
                 }
-
-                holder.btnMap.setOnClickListener {
-
-                    val uri = Uri.parse("geo:$lat,$lng?q=$lat,$lng($hospitalName)")
-
-                    val mapIntent = Intent(Intent.ACTION_VIEW, uri)
-
-                    holder.itemView.context.startActivity(mapIntent)
+                
+                // Only set default map click if status is NOT tracking
+                // If it is tracking, it's already handled in onBindViewHolder
+                val currentStatus = holder.txtStatus.text.toString()
+                if (!currentStatus.contains("Ambulance On The Way")) {
+                    holder.btnMap.setOnClickListener {
+                        val uri = Uri.parse("geo:$lat,$lng?q=$lat,$lng($hospitalName)")
+                        val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+                        holder.itemView.context.startActivity(mapIntent)
+                    }
                 }
             }
     }

@@ -20,6 +20,9 @@
             android:name=".ProfileActivity"
             android:exported="false" />
         <activity
+            android:name=".AmbulanceTrackingActivity"
+            android:exported="false" />
+        <activity
             android:name=".MapsActivity"
             android:exported="false" />
         <activity
